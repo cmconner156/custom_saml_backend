@@ -1,4 +1,5 @@
 # custom_saml_backend
+NOTE:  Requires CDH 5.5.0 and above.
 Backend for remapping SAML username to another username.  Steps to use:
 
 1.  Edit customsamlbackend.py and alter the variable username to match whatever you need and return the username.  It currently strips anything after the "@".
