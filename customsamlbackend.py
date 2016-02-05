@@ -2,13 +2,21 @@
 from __future__ import absolute_import
 
 import logging
+
 from libsaml.backend import SAML2Backend
+
+from desktop.conf import LDAP
+from useradmin import ldap_access
+from useradmin.views import import_ldap_users
+
 
 LOG = logging.getLogger(__name__)
 
+
 class CustomSAML2Backend(SAML2Backend):
   """
-  Wrapper around libsaml.SAML2Backend to alter SAML username
+  Wrapper around libsaml.SAML2Backend to alter SAML username.
+  Support LDAP group sync on the authenticating user when SYNC_GROUPS_ON_LOGIN is on LDAP is configured.
   """
 
   def clean_user_main_attribute(self, main_attribute):
@@ -42,3 +50,21 @@ class CustomSAML2Backend(SAML2Backend):
         return True
 
     return False
+
+  def authenticate(self, *args, **kwargs):
+    user = super(CustomSAML2Backend, self).authenticate(*args, **kwargs)
+
+    if LDAP.SYNC_GROUPS_ON_LOGIN.get():
+      LOG.warn("Starting group sync for user %s" % user)
+      if hasattr(LDAP, 'LDAP_SERVERS') and LDAP.LDAP_SERVERS.get():
+        server = LDAP.LDAP_SERVERS.get().keys()[0] # We currently pick the first LDAP config
+      else:
+        server = None # Old single instance format
+      self._import_groups(server, user)
+      LOG.warn("Group sync for user %s finished" % user)
+
+    return user
+
+  def _import_groups(self, server, user):
+    connection = ldap_access.get_connection_from_server(server)
+    import_ldap_users(connection, user.username, sync_groups=True, import_by_dn=False, server=server)
