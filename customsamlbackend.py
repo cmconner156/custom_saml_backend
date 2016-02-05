@@ -56,8 +56,11 @@ class CustomSAML2Backend(SAML2Backend):
 
     if LDAP.SYNC_GROUPS_ON_LOGIN.get():
       LOG.warn("Starting group sync for user %s" % user)
-      server = LDAP.LDAP_SERVERS.keys()[0] # We currently pick the first LDAP config
-      self.import_groups(server, user)
+      if hasattr(LDAP, 'LDAP_SERVERS') and LDAP.LDAP_SERVERS.get():
+        server = LDAP.LDAP_SERVERS.get().keys()[0] # We currently pick the first LDAP config
+      else:
+        server = None # Old single instance format
+      self._import_groups(server, user)
       LOG.warn("Group sync for user %s finished" % user)
 
     return user
